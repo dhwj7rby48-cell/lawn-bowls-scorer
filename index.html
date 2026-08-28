@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1238e8">
 <link rel="manifest" href="manifest.webmanifest">
 <title>Lawn Bowls Scorer</title>
@@ -118,6 +118,27 @@ button{font:inherit;border:0;cursor:pointer}
     text-align:center!important;
     text-align-last:center!important;
   }
+}
+</style>
+<style id="wpbc-phone-score-select">
+.score-select{
+  width:68px;
+  min-width:68px;
+  height:44px;
+  padding:0 4px;
+  border:1px solid #ccc;
+  border-radius:9px;
+  background:#fff;
+  color:#111;
+  font:700 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  text-align:center;
+}
+.home-score{border-color:#c8d1f7}
+.away-score{border-color:#ffd0c9}
+@media(max-width:500px){
+  input,select,textarea{font-size:16px !important;}
+  .score-select{width:70px;min-width:70px;height:46px;font-size:18px !important;}
+  .players{font-size:16px !important;}
 }
 </style>
 </head>
@@ -237,14 +258,14 @@ function render(){
     d.innerHTML=`
       <div class="rinklabel">Rink ${i+1}</div>
       <div class="scorebox ${hw}">
-        <button class="bump home" onclick="change(${i},'h',-1)">−</button>
-        <span class="score">${r.h}</span>
-        <button class="bump home" onclick="change(${i},'h',1)">+</button>
+        <select class="score-select home-score" data-rink="${i}" aria-label="Wolverton Park score on Rink ${i+1}">
+          ${Array.from({length:51},(_,n)=>`<option value="${n}"${n===r.h?" selected":""}>${n}</option>`).join("")}
+        </select>
       </div>
       <div class="scorebox ${aw}">
-        <button class="bump away" onclick="change(${i},'a',-1)">−</button>
-        <span class="score">${r.a}</span>
-        <button class="bump away" onclick="change(${i},'a',1)">+</button>
+        <select class="score-select away-score" data-rink="${i}" aria-label="Opponent score on Rink ${i+1}">
+          ${Array.from({length:51},(_,n)=>`<option value="${n}"${n===r.a?" selected":""}>${n}</option>`).join("")}
+        </select>
       </div>
       <input class="players" placeholder="Players on Rink ${i+1} (optional)" value="${escapeHtml(r.p)}"
              oninput="data[${i}].p=this.value;update()">
@@ -363,5 +384,16 @@ if ("serviceWorker" in navigator &&
 }
 </script>
 
+<script id="wpbc-score-select-handler">
+document.addEventListener("change", function(e){
+  const el=e.target;
+  if(!el || !el.classList.contains("score-select")) return;
+  const i=Number(el.dataset.rink);
+  if(!Number.isInteger(i) || !data[i]) return;
+  if(el.classList.contains("home-score")) data[i].h=Math.max(0,Math.min(50,Number(el.value)||0));
+  else data[i].a=Math.max(0,Math.min(50,Number(el.value)||0));
+  render();
+});
+</script>
 </body>
 </html>
