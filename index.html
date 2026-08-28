@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1238e8">
+<link rel="manifest" href="manifest.webmanifest">
+<title>WPBC Friendly Scorer</title>
+<style>
+:root{--home:#1238e8;--away:#ff2b12;--ink:#111;--muted:#666;--bg:#f7f7f7;--card:#fff}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink)}
+.app{max-width:760px;margin:auto;padding:18px 14px 34px}
+h1{text-align:center;font-size:24px;margin:4px 0 16px}
+.toolbar{display:flex;gap:8px;margin-bottom:12px}
+button{font:inherit;border:0;cursor:pointer}
+.smallbtn{flex:1;padding:10px;border-radius:10px;background:#e8e8e8;font-weight:600}
+.teams,.totals{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.team input{width:100%;padding:14px 10px;text-align:center;font-size:20px;font-weight:700;border:0;border-bottom:0;outline:none;border-radius:10px 10px 0 0;color:white;background:var(--home);box-shadow:none;appearance:none}
+.team.away input{background:var(--away);border-bottom:0;outline:none;box-shadow:none}
+.total{color:white;text-align:center;font-size:40px;font-weight:800;padding:10px;border-radius:0 0 10px 10px;background:var(--home)}
+.total.away{background:var(--away)}
+.card{background:var(--card);border-radius:14px;padding:12px;margin-top:14px;box-shadow:0 1px 4px #0001}
+.rink{display:grid;grid-template-columns:70px 1fr 1fr;align-items:center;gap:10px;padding:8px 0}
+.rinklabel{font-weight:700}
+.scorebox{display:flex;align-items:center;justify-content:center;gap:6px}
+.score{min-width:44px;text-align:center;font-size:22px;font-weight:700}
+.bump{width:44px;height:44px;border-radius:50%;background:#eee;font-size:27px;line-height:1}
+.bump.home{background:#dfe5ff;color:var(--home)}
+.bump.away{background:#ffe1dc;color:var(--away)}
+.winner .score{color:white;padding:5px 10px;border-radius:4px;background:var(--home)}
+.winner.aw .score{background:var(--away)}
+.players{grid-column:2/4;width:100%;padding:7px 8px;border:1px solid #ddd;border-radius:7px;font-size:14px}
+.results{text-align:center;padding:16px 8px}
+.result-title{font-size:24px;font-weight:800}
+.result-sub{margin-top:8px;color:var(--muted)}
+.highlight{margin-top:18px;font-size:18px;font-weight:700}
+@media(max-width:500px){.app{padding:12px 10px}.rink{grid-template-columns:58px 1fr 1fr;gap:6px}.bump{width:40px;height:40px}.score{min-width:34px}}
+</style>
+<style id="score-picker-mobile">
+.score-select{width:68px;min-width:68px;height:44px;padding:0 4px;border:1px solid #ccc;border-radius:9px;background:#fff;color:#111;font:700 18px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center}
+.home-score{border-color:#c8d1f7}.away-score{border-color:#ffd0c9}
+@media(max-width:500px){input,select,textarea{font-size:16px!important}.score-select{width:70px;min-width:70px;height:46px;font-size:18px!important}.players{font-size:16px!important}}
+</style></head>
+<body>
+<div class="app">
+<h1>WPBC Friendly Scorer</h1>
+<div class="toolbar">
+<button class="smallbtn" onclick="newMatch()">New Match</button>
+<button class="smallbtn" onclick="saveMatch()">Save Result</button>
+<button class="smallbtn" onclick="showScoreboard()">Final Result</button>
+</div>
+
+<div class="teams">
+  <div class="team"><input id="homeName" value="Wolverton Park" aria-label="Home team"></div>
+  <div class="team away"><input id="awayName" value="Opponents" aria-label="Away team"></div>
+</div>
+<div class="totals">
+  <div class="total" id="homeTotal">0</div>
+  <div class="total away" id="awayTotal">0</div>
+</div>
+
+<div class="card" id="rinks"></div>
+
+<div class="card results">
+  <div class="result-title" id="overall">Match not started</div>
+  <div class="result-sub" id="margin"></div>
+  <div class="highlight">Highest winning rink: <span id="bestRink">—</span></div>
+  <div class="result-sub" id="bestPlayers"></div>
+</div>
+</div>
+
+<div id="scoreboard" class="scoreboard-screen" aria-hidden="true">
+  <div class="scoreboard-card">
+    <div class="score-title">WPBC FRIENDLY</div>
+    <div class="score-teams">
+      <div></div>
+      <div><div id="boardHomeName" class="board-name team-home-header"></div></div>
+      <div><div id="boardAwayName" class="board-name team-away-header"></div></div>
+    </div>
+    <div class="board-table">
+      <div class="board-head"><span>Rink</span><span></span><span></span></div>
+      <div id="boardRinks"></div>
+      <div class="board-total"><span>TOTAL</span><strong id="boardHomeTotal">0</strong><strong id="boardAwayTotal">0</strong></div>
+    </div>
+    <div id="boardOverall" class="board-overall"></div>
+    <div id="boardBest" class="board-best"></div>
+    <button class="close-board" onclick="hideScoreboard()">Back to Scoring</button>
+  </div>
+</div>
+
+<style>
+.scoreboard-screen{display:none;position:fixed;inset:0;background:#fff;z-index:20;overflow:auto}
+.scoreboard-screen.visible{display:block}
+.scoreboard-card{max-width:760px;margin:auto;padding:28px 18px 30px;min-height:100vh;background:#fff}
+.score-title{text-align:center;font-size:18px;font-weight:800;letter-spacing:2px;margin-bottom:20px}
+.score-teams{display:grid;grid-template-columns:64px 1fr 1fr;gap:10px;text-align:center;margin-bottom:20px}
+.score-team{font-size:12px;font-weight:800;letter-spacing:1px;margin-bottom:4px}
+.score-team.home{color:var(--home)} .score-team.away{color:var(--away)}
+.board-name{font-size:22px;font-weight:800;min-height:28px;padding:10px 8px;border-radius:8px;color:#fff}
+.team-home-header{background:var(--home)} .team-away-header{background:var(--away)}
+.board-table{border:1px solid #ddd;border-radius:12px;overflow:hidden}
+.board-head,.board-row,.board-total{display:grid;grid-template-columns:64px 1fr 1fr;align-items:center;text-align:center}
+.board-head{background:#f0f0f0;font-weight:800;font-size:14px;padding:10px}
+.board-row{padding:12px 8px;border-top:1px solid #eee;font-size:20px;column-gap:10px}
+.board-row .rinkno{font-size:14px;font-weight:700;color:#666}
+.board-row .winning{font-weight:900}
+.board-row .home-win{color:var(--home)} .board-row .away-win{color:var(--away)}
+.board-row span.rinkno{color:#666}
+.board-row span.score-highlight{color:#fff;padding:6px 10px;border-radius:6px;font-weight:900;margin:0 2px}
+.board-row span.wpbc-win{background:var(--home)}
+.board-row span.opponent-win{background:var(--away)}
+.board-row span.draw{background:#e6b800}
+.board-total{padding:14px 8px;border-top:2px solid #222;font-size:23px;column-gap:10px}
+.board-total strong{font-size:30px}
+.board-overall{text-align:center;font-size:28px;font-weight:900;margin-top:24px}
+.board-best{text-align:center;font-size:17px;font-weight:700;margin-top:10px;line-height:1.45}
+.close-board{display:block;margin:26px auto 0;padding:11px 18px;border-radius:10px;background:#e8e8e8;font-weight:700}
+@media(max-width:500px){.scoreboard-card{padding:24px 12px}.board-name{font-size:18px}.score-teams{grid-template-columns:50px 1fr 1fr;gap:6px}.board-head,.board-row,.board-total{grid-template-columns:50px 1fr 1fr}.board-row{font-size:19px}.board-total strong{font-size:27px}.board-overall{font-size:24px}}
+@media print{.scoreboard-screen{display:block!important;position:static}.close-board{display:none}}
+</style>
+
+<script>
+const data = Array.from({length:7},()=>({h:0,a:0,p:""}));
+const root=document.getElementById("rinks");
+
+function render(){
+  root.innerHTML="";
+  data.forEach((r,i)=>{
+    const d=document.createElement("div");
+    d.className="rink";
+    const hw=r.h>r.a?"winner":"";
+    const aw=r.a>r.h?"winner aw":"";
+    d.innerHTML=`
+      <div class="rinklabel">Rink ${i+1}</div>
+      <div class="scorebox ${hw}">
+        <select class="score-select home-score" data-rink="${i}" aria-label="Wolverton Park score on Rink ${i+1}">
+          ${Array.from({length:51},(_,n)=>`<option value="${n}"${n===r.h?" selected":""}>${n}</option>`).join("")}
+        </select>
+      </div>
+      <div class="scorebox ${aw}">
+        <select class="score-select away-score" data-rink="${i}" aria-label="Opponent score on Rink ${i+1}">
+          ${Array.from({length:51},(_,n)=>`<option value="${n}"${n===r.a?" selected":""}>${n}</option>`).join("")}
+        </select>
+      </div>
+      <input class="players" placeholder="Players on Rink ${i+1} (optional)" value="${escapeHtml(r.p)}"
+             oninput="data[${i}].p=this.value;update()">
+    `;
+    root.appendChild(d);
+  });
+  update();
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function change(i,t,n){data[i][t]=Math.max(0,data[i][t]+n);render()}
+function update(){
+  let ht=0,at=0;
+  data.forEach(r=>{ht+=r.h;at+=r.a});
+  homeTotal.textContent=ht; awayTotal.textContent=at;
+  const hn=homeName.value||"Home", an=awayName.value||"Away";
+  if(ht===0&&at===0){overall.textContent="Match not started";margin.textContent="";}
+  else if(ht===at){overall.textContent=`DRAW ${ht}–${at}`;margin.textContent="";}
+  else {const n=ht>at?hn:an,m=Math.abs(ht-at);overall.textContent=`${n} WIN ${Math.max(ht,at)}–${Math.min(ht,at)}`;margin.textContent=`Winning margin: ${m}`;}
+  let best=-1,bm=-1;
+  data.forEach((r,i)=>{const m=Math.abs(r.h-r.a); if(r.h!==r.a && m>bm){bm=m;best=i}});
+  bestRink.textContent=best<0?"—":`Rink ${best+1}`;
+  bestPlayers.textContent=best<0?"":(data[best].p||"");
+}
+function newMatch(){
+  if(confirm("Clear this match?")){data.forEach(r=>{r.h=0;r.a=0;r.p=""});render()}
+}
+function showScoreboard(){
+  boardHomeName.textContent=homeName.value||"Home";
+  boardAwayName.textContent=awayName.value||"Away";
+  boardRinks.innerHTML="";
+  let ht=0,at=0;
+  data.forEach((r,i)=>{
+    ht+=r.h; at+=r.a;
+    const row=document.createElement("div");
+    row.className="board-row";
+    let hc="", ac="";
+    if(r.h>r.a){hc="score-highlight wpbc-win";}
+    else if(r.h<r.a){ac="score-highlight opponent-win";}
+    else if(r.h!==0 || r.a!==0){hc="score-highlight draw"; ac="score-highlight draw";}
+    row.innerHTML=`<span class="rinkno">${i+1}</span><span class="${hc}">${r.h}</span><span class="${ac}">${r.a}</span>`;
+    boardRinks.appendChild(row);
+  });
+  boardHomeTotal.textContent=ht;
+  boardAwayTotal.textContent=at;
+  const hn=homeName.value||"Home", an=awayName.value||"Away";
+  boardOverall.textContent=ht===at?`DRAW ${ht}–${at}`:`${ht>at?hn:an} WIN ${Math.max(ht,at)}–${Math.min(ht,at)}`;
+  let best=-1,bm=-1;
+  // Highest Winning Rink is awarded to Wolverton Park only.
+  data.forEach((r,i)=>{
+    const m=r.h-r.a;
+    if(m>0 && m>bm){bm=m;best=i}
+  });
+  if(best<0){
+    boardBest.textContent="";
+  } else {
+    const players=(data[best].p||"").trim();
+    boardBest.textContent=`Highest winning rink: Rink ${best+1} • winning margin ${bm}${players ? " • " + players : ""}`;
+  }
+  scoreboard.classList.add("visible");
+  scoreboard.setAttribute("aria-hidden","false");
+}
+function hideScoreboard(){scoreboard.classList.remove("visible");scoreboard.setAttribute("aria-hidden","true")}
+function saveMatch(){
+  const record={date:new Date().toISOString(),home:homeName.value,away:awayName.value,rinks:data.map(r=>({...r})),
+    homeTotal:+homeTotal.textContent,awayTotal:+awayTotal.textContent};
+  const history=JSON.parse(localStorage.getItem("wpbcMatches")||"[]");
+  history.unshift(record); localStorage.setItem("wpbcMatches",JSON.stringify(history));
+  alert("Result saved on this device.");
+}
+homeName.addEventListener("input",update); awayName.addEventListener("input",update);
+render();
+</script>
+<script id="score-picker-handler">
+document.addEventListener("change",function(e){
+  const el=e.target;
+  if(!el || !el.classList.contains("score-select")) return;
+  const i=Number(el.dataset.rink);
+  if(!Number.isInteger(i) || !data[i]) return;
+  const v=Math.max(0,Math.min(50,Number(el.value)||0));
+  if(el.classList.contains("home-score")) data[i].h=v; else data[i].a=v;
+  render();
+});
+</script></body>
+</html>
